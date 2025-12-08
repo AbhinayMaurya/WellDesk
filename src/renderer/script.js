@@ -86,14 +86,12 @@ async function loadData() {
     let totalSeconds = 0;
     let productiveSeconds = 0;
     
-    // --- FIX: Initialize the Top App Variable ---
     let topApp = { name: '-', duration: 0 }; 
 
     for (const [appName, appDetails] of Object.entries(appsObj)) {
       const duration = appDetails.total_duration || 0;
       const category = appDetails.category || 'Neutral';
       
-      // --- FIX: Logic to Find the Top App ---
       if (duration > topApp.duration) {
         topApp = { name: appName, duration: duration };
       }
@@ -127,7 +125,6 @@ async function loadData() {
     // Update Top App Card
     const topAppEl = document.getElementById('top-app-display');
     if (topAppEl) {
-        // Now topApp is defined, so this line won't crash!
         topAppEl.innerText = `${topApp.name} (${formatTime(topApp.duration)})`;
     }
 
@@ -176,3 +173,92 @@ function renderChart(labels, data, colors) {
 
 loadData();
 setInterval(loadData, 5000);
+
+// --- NAVIGATION LOGIC ---
+
+const navLinks = document.querySelectorAll('.nav-links li');
+
+navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+
+        const viewName = link.innerText.trim();
+        
+        if (viewName === 'Dashboard') {
+            document.getElementById('view-dashboard').style.display = 'block';
+            document.getElementById('view-focus').style.display = 'none';
+        } 
+        else if (viewName === 'Focus Mode') {
+            document.getElementById('view-dashboard').style.display = 'none';
+            document.getElementById('view-focus').style.display = 'block';
+        }
+    });
+});
+
+// --- FOCUS MODE LOGIC ---
+
+let focusInterval;
+let isFocusRunning = false;
+let defaultDuration = 25 * 60; // 25 minutes in seconds
+let timeLeft = defaultDuration;
+
+// 1. formatting helper (MM:SS)
+function formatTimerDisplay(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// 2. The Main Toggle Function (Linked to the HTML Button)
+window.toggleFocus = async () => {
+    const btn = document.getElementById('btn-start-focus');
+    
+    if (!isFocusRunning) {
+        // --- START FOCUS ---
+        isFocusRunning = true;
+        btn.innerText = "Stop Focus";
+        btn.classList.add('btn-danger'); // Turn Red
+        
+        console.log("Focus Mode STARTED"); 
+        
+        // --- NEW: Enable the Block via Bridge ---
+        await window.electronAPI.setFocusMode(true); 
+
+        // Start Countdown
+        focusInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById('timer').innerText = formatTimerDisplay(timeLeft);
+
+            if (timeLeft <= 0) {
+                finishFocusSession();
+            }
+        }, 1000);
+
+    } else {
+        // --- STOP FOCUS ---
+        stopFocusSession();
+    }
+};
+
+function stopFocusSession() {
+    clearInterval(focusInterval);
+    isFocusRunning = false;
+    timeLeft = defaultDuration; 
+    
+    // Reset UI
+    document.getElementById('timer').innerText = formatTimerDisplay(timeLeft);
+    const btn = document.getElementById('btn-start-focus');
+    btn.innerText = "Start Focus";
+    btn.classList.remove('btn-danger');
+    
+    console.log("Focus Mode STOPPED");
+    
+    // --- NEW: Disable the Block via Bridge ---
+    window.electronAPI.setFocusMode(false);
+}
+
+function finishFocusSession() {
+    stopFocusSession();
+    alert("Focus Session Complete! Great job.");
+}

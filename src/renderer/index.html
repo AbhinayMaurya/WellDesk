@@ -24,47 +24,69 @@
 
         <main class="content">
             
-            <header>
-                <h2>Overview</h2>
-                <p id="date-display">Loading date...</p>
-            </header>
+            <div id="view-dashboard">
+                <header>
+                    <h2>Overview</h2>
+                    <p id="date-display">Loading date...</p>
+                </header>
 
-            <div class="kpi-grid">
-                <div class="card kpi-card">
-                    <h3>Total Time</h3>
-                    <p class="big-number" id="total-time-display">0s</p>
-                </div>
-                <div class="card kpi-card">
-                    <h3>Productivity</h3>
-                    <p class="big-number" id="score-display">--%</p> 
-                </div>
-                <div class="card kpi-card">
-                    <h3>Top App</h3>
-                    <p class="big-number" id="top-app-display" style="font-size: 1.2rem;">Tracking...</p>
-                </div>
-            </div>
-
-            <div class="chart-section">
-                <div class="card chart-card">
-                    <h3>Activity Distribution</h3>
-                    <div class="canvas-container">
-                        <canvas id="usageChart"></canvas>
+                <div class="kpi-grid">
+                    <div class="card kpi-card">
+                        <h3>Total Time</h3>
+                        <p class="big-number" id="total-time-display">0s</p>
+                    </div>
+                    <div class="card kpi-card">
+                        <h3>Productivity</h3>
+                        <p class="big-number" id="score-display">--%</p> 
+                    </div>
+                    <div class="card kpi-card">
+                        <h3>Top App</h3>
+                        <p class="big-number" id="top-app-display" style="font-size: 1.2rem;">Tracking...</p>
                     </div>
                 </div>
+
+                <div class="chart-section">
+                    <div class="card chart-card">
+                        <h3>Activity Distribution</h3>
+                        <div class="canvas-container">
+                            <canvas id="usageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 20px;">
+                    <h3>App Details</h3>
+                    <table class="app-table">
+                        <thead>
+                            <tr>
+                                <th>App Name</th>
+                                <th>Time</th>
+                                <th>Category</th> </tr>
+                        </thead>
+                        <tbody id="app-list-body">
+                            </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="card" style="margin-top: 20px;">
-                <h3>App Details</h3>
-                <table class="app-table">
-                    <thead>
-                        <tr>
-                            <th>App Name</th>
-                            <th>Time</th>
-                            <th>Category</th> </tr>
-                    </thead>
-                    <tbody id="app-list-body">
-                        </tbody>
-                </table>
+
+            <div id="view-focus" style="display: none;">
+                <header>
+            <h2>Focus Mode</h2>
+            <p>Block distractions and get work done.</p>
+        </header>
+
+        <div class="card focus-container" style="text-align: center; padding: 50px;">
+            <div class="timer-display" id="timer">25:00</div>
+            
+            <div class="controls">
+                <button id="btn-start-focus" class="btn-primary" onclick="toggleFocus()">Start Focus</button>
             </div>
+
+            <p style="margin-top: 20px; color: #7f8c8d;">
+                <i class="fa-solid fa-shield-halved"></i> 
+                Apps marked as <b>Distraction</b> will be minimized immediately.
+            </p>
+        </div>
+    </div>
 
         </main>
     </div>

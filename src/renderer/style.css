@@ -91,3 +91,46 @@ header p { color: #7f8c8d; font-size: 16px; margin-top: 5px; }
 .category-select[data-val="Productive"] { border-color: #2ecc71; color: #27ae60; background: #eafaf1; }
 .category-select[data-val="Distraction"] { border-color: #e74c3c; color: #c0392b; background: #fdedec; }
 .category-select[data-val="Neutral"] { border-color: #95a5a6; color: #7f8c8d; }
+
+/* Focus Mode Styles */
+.focus-container {
+    max-width: 600px;
+    margin: 40px auto;
+}
+
+.timer-display {
+    font-size: 80px;
+    font-weight: bold;
+    color: #2c3e50;
+    font-family: 'Courier New', monospace; /* Monospace keeps numbers from jumping */
+    margin-bottom: 30px;
+}
+
+/* Button Styles */
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 18px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    font-weight: bold;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+/* Style for the 'Active' State (Red Stop Button) */
+.btn-danger {
+    background-color: #e74c3c !important;
+}
+.btn-danger:hover {
+    background-color: #c0392b !important;
+}
