@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'; // <--- ADD ipcMain
 import activeWin from 'active-win'; // Import the tracking library
-import { logAppUsage, getHistory } from './data/dataHandler.js'; // <--- ADD getHistory
+import { logAppUsage, getHistory, setAppCategory } from './data/dataHandler.js'; // <--- ADD setAppCategory
 import path from 'path'; // <--- ADD path
 import { fileURLToPath } from 'url'; // <--- ADD this for path handling
 
@@ -72,6 +72,12 @@ app.whenReady().then(() => {
   // When Frontend asks for data, run this function
   ipcMain.handle('get-usage-data', () => {
     return getHistory(); // Returns the JSON object
+  });
+
+  // --- NEW HANDLER ---
+  ipcMain.handle('set-category', (event, appName, category) => {
+    setAppCategory(appName, category);
+    return true; // Send success signal back
   });
 
   createWindow();

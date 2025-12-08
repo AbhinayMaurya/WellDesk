@@ -36,10 +36,12 @@
                 </div>
                 <div class="card kpi-card">
                     <h3>Productivity</h3>
-                    <p class="big-number">--%</p> </div>
+                    <p class="big-number" id="score-display">--%</p> 
+                </div>
                 <div class="card kpi-card">
                     <h3>Top App</h3>
-                    <p class="big-number" style="font-size: 1.2rem;">Tracking...</p> </div>
+                    <p class="big-number" id="top-app-display" style="font-size: 1.2rem;">Tracking...</p>
+                </div>
             </div>
 
             <div class="chart-section">
@@ -49,6 +51,19 @@
                         <canvas id="usageChart"></canvas>
                     </div>
                 </div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <h3>App Details</h3>
+                <table class="app-table">
+                    <thead>
+                        <tr>
+                            <th>App Name</th>
+                            <th>Time</th>
+                            <th>Category</th> </tr>
+                    </thead>
+                    <tbody id="app-list-body">
+                        </tbody>
+                </table>
             </div>
 
         </main>

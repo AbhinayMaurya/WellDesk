@@ -57,3 +57,37 @@ header p { color: #7f8c8d; font-size: 16px; margin-top: 5px; }
 .chart-section { height: 400px; }
 .chart-card { height: 100%; display: flex; flex-direction: column; }
 .canvas-container { flex-grow: 1; position: relative; }
+
+/* Table Styling */
+.app-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+.app-table th, .app-table td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #ecf0f1;
+}
+.app-table th {
+    color: #95a5a6;
+    font-size: 14px;
+    font-weight: 600;
+}
+.app-table td {
+    font-size: 15px;
+}
+
+/* Category Dropdown Styling */
+.category-select {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid #bdc3c7;
+    background: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+/* Color code the dropdowns based on value */
+.category-select[data-val="Productive"] { border-color: #2ecc71; color: #27ae60; background: #eafaf1; }
+.category-select[data-val="Distraction"] { border-color: #e74c3c; color: #c0392b; background: #fdedec; }
+.category-select[data-val="Neutral"] { border-color: #95a5a6; color: #7f8c8d; }
