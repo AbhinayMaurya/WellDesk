@@ -5,5 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setCategory: (appName, category) => ipcRenderer.invoke('set-category', appName, category),
   
   // --- NEW FUNCTION ---
-  setFocusMode: (state) => ipcRenderer.invoke('set-focus-mode', state) 
+  setFocusMode: (state) => ipcRenderer.invoke('set-focus-mode', state),
+  // --- NEW FUNCTION ---
+  clearData: () => ipcRenderer.invoke('clear-data') 
 });

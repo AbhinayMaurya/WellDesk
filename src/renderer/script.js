@@ -1,6 +1,8 @@
 // src/renderer/script.js
 
-// 1. Helper: Convert seconds to "1h 30m" or "45s"
+// --- HELPER FUNCTIONS ---
+
+// 1. Convert seconds to "1h 30m" or "05:00"
 function formatTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -11,13 +13,20 @@ function formatTime(seconds) {
   return `${s}s`;
 }
 
-// 2. Helper: Get Friendly Date
+// 2. Format specifically for the Timer (MM:SS)
+function formatTimerDisplay(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// 3. Get Friendly Date
 function getFriendlyDate() {
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   return new Date().toLocaleDateString('en-US', options);
 }
 
-// 3. Helper: Consistent Color Generator
+// 4. Consistent Color Generator
 function stringToColor(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -27,7 +36,8 @@ function stringToColor(str) {
   return `hsl(${hue}, 70%, 60%)`;
 }
 
-// 4. Function to draw the table rows
+// --- DASHBOARD LOGIC ---
+
 function renderTable(appsObj) {
   const tbody = document.getElementById('app-list-body');
   if (!tbody) return; 
@@ -61,14 +71,11 @@ function renderTable(appsObj) {
   });
 }
 
-// 5. Function called when dropdown changes
 window.updateCategory = async (appName, newCategory) => {
-  console.log(`Setting ${appName} to ${newCategory}`);
   await window.electronAPI.setCategory(appName, newCategory);
   loadData();
 };
 
-// 6. Main Data Loading Function
 async function loadData() {
   try {
     const history = await window.electronAPI.getUsageData();
@@ -85,7 +92,6 @@ async function loadData() {
 
     let totalSeconds = 0;
     let productiveSeconds = 0;
-    
     let topApp = { name: '-', duration: 0 }; 
 
     for (const [appName, appDetails] of Object.entries(appsObj)) {
@@ -97,24 +103,19 @@ async function loadData() {
       }
 
       totalSeconds += duration;
-      if (category === 'Productive') {
-        productiveSeconds += duration;
-      }
+      if (category === 'Productive') productiveSeconds += duration;
       
       labels.push(appName);
       dataPoints.push(duration);
       colors.push(stringToColor(appName));
     }
 
-    // Update Total Time
+    // Update Cards
     const timeEl = document.getElementById('total-time-display');
     if (timeEl) timeEl.innerText = formatTime(totalSeconds);
 
-    // Update Productivity Score
     let score = 0;
-    if (totalSeconds > 0) {
-      score = Math.round((productiveSeconds / totalSeconds) * 100);
-    }
+    if (totalSeconds > 0) score = Math.round((productiveSeconds / totalSeconds) * 100);
     
     const scoreEl = document.getElementById('score-display');
     if (scoreEl) {
@@ -122,11 +123,8 @@ async function loadData() {
         scoreEl.style.color = score >= 50 ? '#27ae60' : '#e74c3c';
     }
 
-    // Update Top App Card
     const topAppEl = document.getElementById('top-app-display');
-    if (topAppEl) {
-        topAppEl.innerText = `${topApp.name} (${formatTime(topApp.duration)})`;
-    }
+    if (topAppEl) topAppEl.innerText = `${topApp.name} (${formatTime(topApp.duration)})`;
 
     renderChart(labels, dataPoints, colors);
     renderTable(appsObj);
@@ -136,7 +134,6 @@ async function loadData() {
   }
 }
 
-// 7. Chart Rendering Logic
 function renderChart(labels, data, colors) {
   const ctx = document.getElementById('usageChart').getContext('2d');
   if (window.myChart) window.myChart.destroy();
@@ -145,11 +142,7 @@ function renderChart(labels, data, colors) {
     type: 'doughnut',
     data: {
       labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: colors,
-        borderWidth: 0
-      }]
+      datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }]
     },
     options: {
       responsive: true,
@@ -160,9 +153,7 @@ function renderChart(labels, data, colors) {
         tooltip: {
           callbacks: {
             label: function(context) {
-              const label = context.label || '';
-              const value = context.raw; 
-              return ` ${label}: ${formatTime(value)}`;
+              return ` ${context.label}: ${formatTime(context.raw)}`;
             }
           }
         }
@@ -171,8 +162,71 @@ function renderChart(labels, data, colors) {
   });
 }
 
-loadData();
-setInterval(loadData, 5000);
+// --- HISTORY LOGIC ---
+
+let historyWeekOffset = 0; // 0 = Current Week, 1 = Last Week
+
+window.changeHistoryWeek = (direction) => {
+    historyWeekOffset += direction;
+    
+    // Limits
+    if (historyWeekOffset < 0) historyWeekOffset = 0;
+    if (historyWeekOffset > 3) historyWeekOffset = 3; 
+
+    loadHistoryChart();
+}
+
+async function loadHistoryChart() {
+    try {
+        const history = await window.electronAPI.getUsageData();
+        const labels = [];
+        const dataPoints = [];
+        
+        // Update Label UI
+        const labelEl = document.getElementById('history-week-label');
+        if (labelEl) {
+             if (historyWeekOffset === 0) labelEl.innerText = "Current Week";
+             else labelEl.innerText = `${historyWeekOffset} Week(s) Ago`;
+        }
+
+        const startOffset = historyWeekOffset * 7;
+
+        for (let i = 6 + startOffset; i >= 0 + startOffset; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateKey = d.toISOString().split('T')[0];
+            
+            labels.push(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+
+            const dayData = history[dateKey];
+            const seconds = dayData ? dayData.total_time : 0;
+            dataPoints.push((seconds / 3600).toFixed(1)); 
+        }
+
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        if (window.historyChartInstance) window.historyChartInstance.destroy();
+
+        window.historyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Hours Spent',
+                    data: dataPoints,
+                    backgroundColor: '#3498db',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours' } } }
+            }
+        });
+    } catch (error) {
+        console.error("Error loading history:", error);
+    }
+}
 
 // --- NAVIGATION LOGIC ---
 
@@ -185,13 +239,23 @@ navLinks.forEach(link => {
 
         const viewName = link.innerText.trim();
         
+        document.getElementById('view-dashboard').style.display = 'none';
+        document.getElementById('view-focus').style.display = 'none';
+        document.getElementById('view-history').style.display = 'none';
+        document.getElementById('view-settings').style.display = 'none';
+
         if (viewName === 'Dashboard') {
             document.getElementById('view-dashboard').style.display = 'block';
-            document.getElementById('view-focus').style.display = 'none';
         } 
         else if (viewName === 'Focus Mode') {
-            document.getElementById('view-dashboard').style.display = 'none';
             document.getElementById('view-focus').style.display = 'block';
+        }
+        else if (viewName === 'History') {
+            document.getElementById('view-history').style.display = 'block';
+            loadHistoryChart(); 
+        }
+        else if (viewName === 'Settings') {
+            document.getElementById('view-settings').style.display = 'block';
         }
     });
 });
@@ -200,32 +264,19 @@ navLinks.forEach(link => {
 
 let focusInterval;
 let isFocusRunning = false;
-let defaultDuration = 25 * 60; // 25 minutes in seconds
+let defaultDuration = 25 * 60; 
 let timeLeft = defaultDuration;
 
-// 1. formatting helper (MM:SS)
-function formatTimerDisplay(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-// 2. The Main Toggle Function (Linked to the HTML Button)
 window.toggleFocus = async () => {
     const btn = document.getElementById('btn-start-focus');
     
     if (!isFocusRunning) {
-        // --- START FOCUS ---
         isFocusRunning = true;
         btn.innerText = "Stop Focus";
-        btn.classList.add('btn-danger'); // Turn Red
+        btn.classList.add('btn-danger');
         
-        console.log("Focus Mode STARTED"); 
-        
-        // --- NEW: Enable the Block via Bridge ---
         await window.electronAPI.setFocusMode(true); 
 
-        // Start Countdown
         focusInterval = setInterval(() => {
             timeLeft--;
             document.getElementById('timer').innerText = formatTimerDisplay(timeLeft);
@@ -236,7 +287,6 @@ window.toggleFocus = async () => {
         }, 1000);
 
     } else {
-        // --- STOP FOCUS ---
         stopFocusSession();
     }
 };
@@ -246,19 +296,45 @@ function stopFocusSession() {
     isFocusRunning = false;
     timeLeft = defaultDuration; 
     
-    // Reset UI
     document.getElementById('timer').innerText = formatTimerDisplay(timeLeft);
     const btn = document.getElementById('btn-start-focus');
     btn.innerText = "Start Focus";
     btn.classList.remove('btn-danger');
     
-    console.log("Focus Mode STOPPED");
-    
-    // --- NEW: Disable the Block via Bridge ---
     window.electronAPI.setFocusMode(false);
 }
 
 function finishFocusSession() {
     stopFocusSession();
-    alert("Focus Session Complete! Great job.");
+    alert("Focus Session Complete!");
 }
+
+// --- SETTINGS LOGIC ---
+
+window.saveSettings = () => {
+    const inputEl = document.getElementById('setting-focus-duration');
+    const rawValue = inputEl.value;
+    
+    let minutes = parseInt(rawValue);
+
+    if (isNaN(minutes) || minutes < 1) {
+        minutes = 25;
+        inputEl.value = 25; 
+    }
+
+    defaultDuration = minutes * 60; 
+    timeLeft = defaultDuration; 
+    document.getElementById('timer').innerText = formatTimerDisplay(timeLeft);
+    alert("Settings Saved!");
+};
+
+window.clearAllData = async () => {
+    if (confirm("Are you sure? This will delete all history.")) {
+        await window.electronAPI.clearData();
+        location.reload(); 
+    }
+};
+
+// --- INITIALIZATION ---
+loadData();
+setInterval(loadData, 5000);

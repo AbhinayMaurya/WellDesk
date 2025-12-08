@@ -70,23 +70,66 @@
 
             <div id="view-focus" style="display: none;">
                 <header>
-            <h2>Focus Mode</h2>
-            <p>Block distractions and get work done.</p>
-        </header>
+                    <h2>Focus Mode</h2>
+                    <p>Block distractions and get work done.</p>
+                </header>
 
-        <div class="card focus-container" style="text-align: center; padding: 50px;">
-            <div class="timer-display" id="timer">25:00</div>
-            
-            <div class="controls">
-                <button id="btn-start-focus" class="btn-primary" onclick="toggleFocus()">Start Focus</button>
+                <div class="card focus-container" style="text-align: center; padding: 50px;">
+                    <div class="timer-display" id="timer">25:00</div>
+                    
+                    <div class="controls">
+                        <button id="btn-start-focus" class="btn-primary" onclick="toggleFocus()">Start Focus</button>
+                    </div>
+
+                    <p style="margin-top: 20px; color: #7f8c8d;">
+                        <i class="fa-solid fa-shield-halved"></i> 
+                        Apps marked as <b>Distraction</b> will be minimized immediately.
+                    </p>
+                </div>
             </div>
 
-            <p style="margin-top: 20px; color: #7f8c8d;">
-                <i class="fa-solid fa-shield-halved"></i> 
-                Apps marked as <b>Distraction</b> will be minimized immediately.
-            </p>
-        </div>
-    </div>
+            <div id="view-history" style="display: none;">
+                <header>
+                    <h2>History</h2>
+                    <p>Your activity trends.</p>
+                </header>
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <button class="btn-primary" style="padding: 5px 15px; font-size: 14px;" onclick="changeHistoryWeek(1)">← Previous Week</button>
+                    <span id="history-week-label" style="margin: 0 15px; font-weight: bold; color: #555;">Current Week</span>
+                    <button class="btn-primary" style="padding: 5px 15px; font-size: 14px;" onclick="changeHistoryWeek(-1)">Next Week →</button>
+                </div>
+
+                <div class="card chart-card">
+                    <h3>Weekly Usage Trend</h3>
+                    <div class="canvas-container">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="view-settings" style="display: none;">
+                <header>
+                    <h2>Settings</h2>
+                    <p>Customize your experience.</p>
+                </header>
+
+                <div class="card" style="max-width: 600px;">
+                    <h3>Focus Configuration</h3>
+                    <div style="margin-top: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Focus Timer Duration (minutes)</label>
+                        <input type="number" id="setting-focus-duration" value="25" style="padding: 10px; width: 100%; border: 1px solid #ccc; border-radius: 5px;">
+                    </div>
+                    
+                    <button class="btn-primary" onclick="saveSettings()" style="margin-top: 20px;">Save Settings</button>
+                </div>
+
+                <div class="card" style="max-width: 600px; margin-top: 20px; border-left: 5px solid #e74c3c;">
+                    <h3 style="color: #c0392b;">Danger Zone</h3>
+                    <p>Clear all tracking data and reset the app.</p>
+                    <button class="btn-primary btn-danger" onclick="clearAllData()" style="margin-top: 10px;">Reset All Data</button>
+                </div>
+            </div>
 
         </main>
     </div>

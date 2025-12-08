@@ -1,17 +1,17 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import activeWin from 'active-win'; 
-import { logAppUsage, getHistory, setAppCategory } from './data/dataHandler.js'; 
-import Store from 'electron-store'; // Need direct access to store for checking categories
+import { logAppUsage, getHistory, setAppCategory, clearAllHistory } from './data/dataHandler.js'; 
+import Store from 'electron-store'; 
 import path from 'path'; 
 import { fileURLToPath } from 'url'; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const store = new Store(); // Initialize store to read settings
+const store = new Store(); 
 
 let mainWindow;
 let intervalId;
-let isFocusMode = false; // <--- GLOBAL FLAG
+let isFocusMode = false; 
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -30,8 +30,7 @@ function createWindow() {
 
 // --- MODULE A + C: WATCHER & ENFORCER ---
 async function startTracking() {
-  console.log("--- Watcher Started ---");
-  
+  // Silent startup
   intervalId = setInterval(async () => {
     try {
       const windowInfo = await activeWin();
@@ -40,17 +39,16 @@ async function startTracking() {
         const appName = windowInfo.owner.name;
         const windowTitle = windowInfo.title;
 
-        // 1. Log Usage (Standard Module A)
-        // console.log(`[SAVING] ${appName}`); 
+        // 1. Log Usage
         logAppUsage(appName, windowTitle);
 
-        // 2. ENFORCEMENT (Module C - Focus Mode)
+        // 2. ENFORCEMENT (Focus Mode)
         if (isFocusMode) {
             checkAndBlock(appName);
         }
       }
     } catch (error) {
-      // Ignore errors
+      // Ignore errors silently
     }
   }, 1000);
 }
@@ -62,16 +60,11 @@ function checkAndBlock(appName) {
 
     // 2. If it is a distraction
     if (category === 'Distraction') {
-        console.log(`[BLOCKING] Distraction detected: ${appName}`);
-        
         // A. Force WellDesk to the front
         if (mainWindow) {
             mainWindow.show();
-            mainWindow.setAlwaysOnTop(true); // Keep it on top
+            mainWindow.setAlwaysOnTop(true); 
             mainWindow.focus();
-            
-            // B. Send message to UI to show an alert (Optional polish)
-            // setTimeout(() => mainWindow.setAlwaysOnTop(false), 5000); // Relax after 5s
         }
     } else {
         // If user goes back to work, stop being annoying
@@ -90,10 +83,13 @@ app.whenReady().then(() => {
     return true;
   });
 
-  // --- NEW HANDLER: Toggle Focus Mode ---
   ipcMain.handle('set-focus-mode', (event, state) => {
     isFocusMode = state;
-    console.log(`Focus Mode set to: ${state}`);
+    return true;
+  });
+
+  ipcMain.handle('clear-data', () => {
+    clearAllHistory();
     return true;
   });
 
