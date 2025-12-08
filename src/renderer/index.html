@@ -2,13 +2,57 @@
 <html>
 <head>
     <title>WellDesk</title>
-    <link rel="stylesheet" href="style.css"> 
+    <link rel="stylesheet" href="style.css">
+    <script src="chart.umd.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <h1>WellDesk Dashboard</h1>
-    <p>Data from local storage:</p>
-    
-    <pre id="debug-output" style="text-align: left; background: #eee; padding: 20px;"></pre>
+
+    <div class="app-container">
+        
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-heart-pulse"></i> WellDesk
+            </div>
+            <ul class="nav-links">
+                <li class="active"><i class="fa-solid fa-chart-pie"></i> Dashboard</li>
+                <li><i class="fa-solid fa-clock-rotate-left"></i> History</li>
+                <li><i class="fa-solid fa-ban"></i> Focus Mode</li>
+                <li><i class="fa-solid fa-gear"></i> Settings</li>
+            </ul>
+        </nav>
+
+        <main class="content">
+            
+            <header>
+                <h2>Overview</h2>
+                <p id="date-display">Loading date...</p>
+            </header>
+
+            <div class="kpi-grid">
+                <div class="card kpi-card">
+                    <h3>Total Time</h3>
+                    <p class="big-number" id="total-time-display">0s</p>
+                </div>
+                <div class="card kpi-card">
+                    <h3>Productivity</h3>
+                    <p class="big-number">--%</p> </div>
+                <div class="card kpi-card">
+                    <h3>Top App</h3>
+                    <p class="big-number" style="font-size: 1.2rem;">Tracking...</p> </div>
+            </div>
+
+            <div class="chart-section">
+                <div class="card chart-card">
+                    <h3>Activity Distribution</h3>
+                    <div class="canvas-container">
+                        <canvas id="usageChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
 
     <script src="script.js" defer></script>
 </body>

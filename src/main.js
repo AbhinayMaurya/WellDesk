@@ -23,6 +23,8 @@ function createWindow() {
     }
   });
 
+  mainWindow.removeMenu();
+
   // Load the UI (Dashboard)
   mainWindow.loadFile('src/renderer/index.html');
 }
