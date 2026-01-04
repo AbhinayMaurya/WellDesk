@@ -30,29 +30,33 @@
                     <p id="date-display">Loading date...</p>
                 </header>
 
-                <div class="kpi-grid">
-                    <div class="card kpi-card">
-                        <h3>Total Time</h3>
-                        <p class="big-number" id="total-time-display">0s</p>
+                <div class="dashboard-row">
+        
+                    <div class="chart-section">
+                        <div class="card chart-card">
+                            <h3>Today's Activity</h3>
+                            <div class="canvas-container">
+                                <canvas id="usageChart"></canvas>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card kpi-card">
-                        <h3>Productivity</h3>
-                        <p class="big-number" id="score-display">--%</p> 
-                    </div>
-                    <div class="card kpi-card">
-                        <h3>Top App</h3>
-                        <p class="big-number" id="top-app-display" style="font-size: 1.2rem;">Tracking...</p>
-                    </div>
-                </div>
 
-                <div class="chart-section">
-                    <div class="card chart-card">
-                        <h3>Today's Activity</h3>
-                        <div class="canvas-container">
-                            <canvas id="usageChart"></canvas>
+                    <div class="kpi-grid">
+                        <div class="card kpi-card">
+                            <h3>Total Time</h3>
+                            <p class="big-number" id="total-time-display">0s</p>
+                        </div>
+                        <div class="card kpi-card">
+                            <h3>Productivity</h3>
+                            <p class="big-number" id="score-display">--%</p> 
+                        </div>
+                        <div class="card kpi-card">
+                            <h3>Top App</h3>
+                            <p class="big-number" id="top-app-display" style="font-size: 1.2rem;">Tracking...</p>
                         </div>
                     </div>
                 </div>
+                
                 <div class="card" style="margin-top: 20px;">
                     <h3>App Details</h3>
                     <table class="app-table">
