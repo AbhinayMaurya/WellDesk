@@ -162,46 +162,61 @@ function renderChart(labels, data, colors) {
   });
 }
 
-// --- HISTORY LOGIC ---
+// --- HISTORY LOGIC (Updated with Drill-Down) ---
 
 let historyWeekOffset = 0; // 0 = Current Week, 1 = Last Week
+let currentHistoryData = {}; // Store raw data for click events
+let currentWeekKeys = [];    // Store mapping of bar index to date key
 
 window.changeHistoryWeek = (direction) => {
     historyWeekOffset += direction;
-    
     // Limits
     if (historyWeekOffset < 0) historyWeekOffset = 0;
-    if (historyWeekOffset > 3) historyWeekOffset = 3; 
-
+    // Removed upper limit to allow going back indefinitely if needed
+    
     loadHistoryChart();
 }
 
 async function loadHistoryChart() {
     try {
-        const history = await window.electronAPI.getUsageData();
+        const fullHistory = await window.electronAPI.getUsageData();
+        currentHistoryData = fullHistory; // Save for click handlers
+        
         const labels = [];
         const dataPoints = [];
+        const backgroundColors = [];
+        currentWeekKeys = []; // Reset keys
+
+        // Calculate Date Range
+        const today = new Date();
+        today.setDate(today.getDate() - (historyWeekOffset * 7));
         
-        // Update Label UI
-        const labelEl = document.getElementById('history-week-label');
-        if (labelEl) {
-             if (historyWeekOffset === 0) labelEl.innerText = "Current Week";
-             else labelEl.innerText = `${historyWeekOffset} Week(s) Ago`;
-        }
-
-        const startOffset = historyWeekOffset * 7;
-
-        for (let i = 6 + startOffset; i >= 0 + startOffset; i--) {
-            const d = new Date();
+        // Loop Last 7 Days (Reverse order)
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
             d.setDate(d.getDate() - i);
             const dateKey = d.toISOString().split('T')[0];
-            
-            labels.push(d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }));
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
 
-            const dayData = history[dateKey];
-            const seconds = dayData ? dayData.total_time : 0;
-            dataPoints.push((seconds / 3600).toFixed(1)); 
+            currentWeekKeys.push(dateKey); // Save key for this bar index
+            labels.push(dayName);
+
+            const dayData = fullHistory[dateKey];
+            if (dayData) {
+                const hours = (dayData.total_time / 3600).toFixed(1);
+                dataPoints.push(hours);
+                backgroundColors.push('#3498db');
+            } else {
+                dataPoints.push(0);
+                backgroundColors.push('#ecf0f1');
+            }
         }
+
+        // Update Label UI
+        const startStr = labels[0];
+        const endStr = labels[6];
+        const labelEl = document.getElementById('history-week-label');
+        if (labelEl) labelEl.innerText = `${startStr} - ${endStr}`;
 
         const ctx = document.getElementById('historyChart').getContext('2d');
         if (window.historyChartInstance) window.historyChartInstance.destroy();
@@ -213,18 +228,140 @@ async function loadHistoryChart() {
                 datasets: [{
                     label: 'Hours Spent',
                     data: dataPoints,
-                    backgroundColor: '#3498db',
-                    borderRadius: 5
+                    backgroundColor: backgroundColors,
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours' } } }
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Hours' } } },
+                // --- INTERACTIVE CLICK HANDLER ---
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const dateKey = currentWeekKeys[index];
+                        showDayDetails(dateKey);
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                }
             }
         });
+
+        // --- NEW: AUTO-OPEN TODAY'S DATA ---
+        // If we are on the "Current Week" view (offset 0), automatically show today's list
+        if (historyWeekOffset === 0) {
+            const todayKey = new Date().toISOString().split('T')[0];
+            // Only show if there is data for today
+            if (currentHistoryData[todayKey]) {
+                showDayDetails(todayKey);
+            } else {
+                 // If no data today, hide the card to be clean
+                const detailsCard = document.getElementById('history-details-card');
+                if (detailsCard) detailsCard.style.display = 'none';
+            }
+        } else {
+            // If viewing previous weeks, hide details until user clicks a bar
+            const detailsCard = document.getElementById('history-details-card');
+            if (detailsCard) detailsCard.style.display = 'none';
+        }
+
     } catch (error) {
         console.error("Error loading history:", error);
+    }
+}
+
+// --- NEW FUNCTION: Show Detailed Table (Accordion Style) ---
+function showDayDetails(dateKey) {
+    const card = document.getElementById('history-details-card');
+    const tbody = document.getElementById('history-details-body');
+    const title = document.getElementById('history-details-title');
+
+    const dayData = currentHistoryData[dateKey];
+    
+    if (!dayData || !dayData.apps) {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth' });
+    title.innerText = `Details for ${dateKey}`;
+    tbody.innerHTML = ''; 
+
+    // Sort apps by total duration
+    const sortedApps = Object.entries(dayData.apps).sort(([,a], [,b]) => b.total_duration - a.total_duration);
+
+    sortedApps.forEach(([appName, stats], index) => {
+        // Unique ID for accordion
+        const safeId = `details-${index}`;
+
+        // 1. Sort Window Titles
+        const sortedWindows = Object.entries(stats.window_titles || {})
+            .sort(([,a], [,b]) => b - a);
+
+        // 2. Build Window List HTML
+        const windowListHTML = sortedWindows.map(([title, time]) => `
+            <li>
+                <span style="flex: 1; margin-right: 15px; word-break: break-all;">${title}</span>
+                <span style="font-family: monospace; color: #2c3e50;">${formatTime(time)}</span>
+            </li>
+        `).join('');
+
+        // 3. Create Main Row (Clickable)
+        const mainRow = document.createElement('tr');
+        mainRow.className = 'app-row';
+        mainRow.onclick = () => toggleDetails(safeId);
+        
+        mainRow.innerHTML = `
+            <td style="padding: 12px;">
+                <div style="display: flex; align-items: center;">
+                    <span id="icon-${safeId}" class="toggle-icon">▶</span>
+                    <div class="app-dot" style="background-color: ${stringToColor(appName)}; margin-right: 10px; width: 10px; height: 10px; border-radius: 50%;"></div>
+                    <strong style="font-size: 15px;">${appName}</strong>
+                </div>
+            </td>
+            <td style="text-align: right; font-family: monospace; font-size: 14px;">
+                ${formatTime(stats.total_duration)}
+            </td>
+            <td>
+                <span class="badge ${stats.category}">${stats.category}</span>
+            </td>
+        `;
+
+        // 4. Create Hidden Details Row
+        const detailsRow = document.createElement('tr');
+        detailsRow.id = safeId;
+        detailsRow.className = 'details-row'; // Hidden by default CSS
+        
+        detailsRow.innerHTML = `
+            <td colspan="3" style="padding: 0;">
+                <div class="details-container">
+                    <ul class="window-list">
+                        ${windowListHTML || '<li style="color: #999;">No window title details available.</li>'}
+                    </ul>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(mainRow);
+        tbody.appendChild(detailsRow);
+    });
+}
+
+// --- Helper: Toggle the hidden row ---
+function toggleDetails(rowId) {
+    const row = document.getElementById(rowId);
+    const icon = document.getElementById(`icon-${rowId}`);
+    
+    if (row.classList.contains('open')) {
+        row.classList.remove('open');
+        icon.classList.remove('rotate-down');
+    } else {
+        row.classList.add('open');
+        icon.classList.add('rotate-down');
     }
 }
 
@@ -337,4 +474,4 @@ window.clearAllData = async () => {
 
 // --- INITIALIZATION ---
 loadData();
-setInterval(loadData, 5000);
+setInterval(loadData, 1000);

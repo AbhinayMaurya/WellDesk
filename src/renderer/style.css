@@ -1,3 +1,5 @@
+/* src/renderer/style.css */
+
 /* Reset & Base */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; color: #333; height: 100vh; overflow: hidden; }
@@ -183,4 +185,67 @@ header p { color: #7f8c8d; font-size: 16px; margin-top: 5px; }
 }
 .btn-danger:hover {
     background-color: #c0392b !important;
+}
+
+/* --- Accordion Table Styles --- */
+
+/* The row containing the full list of windows (Hidden by default) */
+.details-row {
+    display: none;
+    background-color: #f8f9fa;
+}
+
+/* When we add the 'open' class, show it as a table-row */
+.details-row.open {
+    display: table-row;
+}
+
+/* The container inside the hidden row */
+.details-container {
+    padding: 10px 20px 10px 40px; /* Indent content */
+    border-left: 3px solid #3498db; /* Blue accent line */
+}
+
+/* The list of window titles */
+.window-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.window-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px dashed #e0e0e0;
+    font-size: 13px;
+    color: #555;
+}
+
+.window-list li:last-child {
+    border-bottom: none;
+}
+
+/* The little arrow icon */
+.toggle-icon {
+    display: inline-block;
+    width: 12px;
+    margin-right: 8px;
+    transition: transform 0.2s;
+    font-size: 10px;
+    color: #7f8c8d;
+    cursor: pointer;
+}
+
+/* Rotate arrow when open */
+.rotate-down {
+    transform: rotate(90deg);
+}
+
+/* Make the main app row clickable */
+.app-row {
+    cursor: pointer;
+}
+.app-row:hover {
+    background-color: #f1f2f6;
 }
