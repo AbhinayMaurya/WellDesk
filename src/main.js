@@ -1,3 +1,5 @@
+// src/main.js
+
 import { app, BrowserWindow, ipcMain } from 'electron';
 import activeWin from 'active-win';
 import { initDB, logAppUsage, getHistory, setAppCategory, clearAllHistory } from './data/database.js';
