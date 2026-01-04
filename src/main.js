@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import activeWin from 'active-win'; 
-import { logAppUsage, getHistory, setAppCategory, clearAllHistory } from './data/dataHandler.js'; 
+import activeWin from 'active-win';
+import { initDB, logAppUsage, getHistory, setAppCategory, clearAllHistory } from './data/database.js';
 import Store from 'electron-store'; 
 import path from 'path'; 
 import { fileURLToPath } from 'url'; 
@@ -75,24 +75,34 @@ function checkAndBlock(appName) {
 }
 
 app.whenReady().then(() => {
+  // 1. Initialize the Database Table first
+  initDB();
+
   // --- IPC Handlers ---
-  ipcMain.handle('get-usage-data', () => getHistory());
+
+  // UPDATED: Now Async because DB access takes time
+  ipcMain.handle('get-usage-data', async () => {
+    return await getHistory();
+  });
   
+  // Set Category (Fire and forget, but usually fast)
   ipcMain.handle('set-category', (event, appName, category) => {
     setAppCategory(appName, category);
     return true;
   });
 
+  // Focus Mode State (Memory only, so sync is fine)
   ipcMain.handle('set-focus-mode', (event, state) => {
     isFocusMode = state;
     return true;
   });
 
-  ipcMain.handle('clear-data', () => {
-    clearAllHistory();
+  // UPDATED: Now Async because clearing DB takes time
+  ipcMain.handle('clear-data', async () => {
+    await clearAllHistory();
     return true;
   });
-
+  
   createWindow();
   startTracking();
 

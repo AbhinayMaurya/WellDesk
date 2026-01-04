@@ -26,6 +26,7 @@
   "dependencies": {
     "active-win": "^8.2.0",
     "chart.js": "^4.4.0",
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "sqlite3": "^5.1.7"
   }
 }
