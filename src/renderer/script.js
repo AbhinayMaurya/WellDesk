@@ -337,4 +337,4 @@ window.clearAllData = async () => {
 
 // --- INITIALIZATION ---
 loadData();
-setInterval(loadData, 5000);
+setInterval(loadData, 1000);
