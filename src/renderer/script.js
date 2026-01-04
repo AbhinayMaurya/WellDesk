@@ -1,5 +1,12 @@
 // src/renderer/script.js
 
+// --- SYSTEM SETTINGS LOGIC ---
+
+window.toggleAutoLaunch = async (isChecked) => {
+    await window.electronAPI.setAutoLaunch(isChecked);
+    // Optional: Show a small toast notification or console log
+    console.log(`Auto-launch set to: ${isChecked}`);
+};
 // --- HELPER FUNCTIONS ---
 
 // 1. Convert seconds to "1h 30m" or "05:00"
@@ -78,6 +85,12 @@ window.updateCategory = async (appName, newCategory) => {
 
 async function loadData() {
   try {
+    const checkbox = document.getElementById('setting-auto-launch');
+    if (checkbox) {
+        // We fetch the real status from the backend
+        const isAutoLaunch = await window.electronAPI.getAutoLaunch();
+        checkbox.checked = isAutoLaunch;
+    }
     const history = await window.electronAPI.getUsageData();
     const todayKey = new Date().toISOString().split('T')[0];
     const todayData = history[todayKey] || { apps: {} };
@@ -337,4 +350,5 @@ window.clearAllData = async () => {
 
 // --- INITIALIZATION ---
 loadData();
+loadSettings();
 setInterval(loadData, 1000);

@@ -102,6 +102,31 @@ app.whenReady().then(() => {
     await clearAllHistory();
     return true;
   });
+  // --- NEW: Auto-Launch Logic ---
+  
+  // 1. Force enable by default on first run (Optional, but requested)
+  // app.setLoginItemSettings({
+  //   openAtLogin: true,
+  //   path: app.getPath('exe') // path to the executable
+  // });
+
+  // 2. Allow UI to toggle it
+ // --- UPDATED: Safer Auto-Launch Logic ---
+  
+  ipcMain.handle('set-auto-launch', (event, state) => {
+    // 1. Safety Check: Only allow this in the built app (.exe)
+    if (!app.isPackaged) {
+      console.log("⚠️ Auto-Launch is disabled in Dev Mode to prevent Blue Screen errors.");
+      return false; // Return false so the UI toggle snaps back to OFF
+    }
+
+    // 2. Register the correct path
+    app.setLoginItemSettings({
+      openAtLogin: state,
+      path: app.getPath('exe') // This points to the real WellDesk.exe
+    });
+    return state;
+  });
   
   createWindow();
   startTracking();
