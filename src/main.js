@@ -127,6 +127,16 @@ app.whenReady().then(() => {
     });
     return state;
   });
+
+  ipcMain.handle('get-auto-launch', () => {
+    if (!app.isPackaged) {
+      return false;
+    }
+
+    return app.getLoginItemSettings({
+      path: app.getPath('exe')
+    }).openAtLogin;
+  });
   
   createWindow();
   startTracking();

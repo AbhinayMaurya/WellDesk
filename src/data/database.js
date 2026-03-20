@@ -21,6 +21,8 @@ export function initDB() {
       )
     `);
 
+    ensureUsageLogsSchema();
+
     // Table: App Categories (Persistent Settings)
     db.run(`
       CREATE TABLE IF NOT EXISTS category_rules (
@@ -36,6 +38,68 @@ export function initDB() {
         value TEXT
       )
     `);
+  });
+}
+
+function ensureUsageLogsSchema() {
+  db.all("PRAGMA table_info(usage_logs)", [], (err, rows) => {
+    if (err) {
+      console.error("Failed to inspect usage_logs schema:", err);
+      return;
+    }
+
+    const hasCompositePrimaryKey = rows.some((row) => row.name === 'date' && row.pk === 1)
+      && rows.some((row) => row.name === 'app_name' && row.pk === 2);
+
+    if (hasCompositePrimaryKey) {
+      return;
+    }
+
+    db.serialize(() => {
+      db.run("ALTER TABLE usage_logs RENAME TO usage_logs_legacy", (renameErr) => {
+        if (renameErr) {
+          console.error("Failed to rename legacy usage_logs table:", renameErr);
+          return;
+        }
+
+        db.run(`
+          CREATE TABLE usage_logs (
+            date TEXT,
+            app_name TEXT,
+            duration INTEGER,
+            category TEXT,
+            PRIMARY KEY (date, app_name)
+          )
+        `, (createErr) => {
+          if (createErr) {
+            console.error("Failed to create migrated usage_logs table:", createErr);
+            return;
+          }
+
+          db.run(`
+            INSERT INTO usage_logs (date, app_name, duration, category)
+            SELECT
+              date,
+              app_name,
+              SUM(COALESCE(duration, 0)) AS duration,
+              COALESCE(MAX(category), 'Neutral') AS category
+            FROM usage_logs_legacy
+            GROUP BY date, app_name
+          `, (copyErr) => {
+            if (copyErr) {
+              console.error("Failed to migrate legacy usage logs:", copyErr);
+              return;
+            }
+
+            db.run("DROP TABLE usage_logs_legacy", (dropErr) => {
+              if (dropErr) {
+                console.error("Failed to remove legacy usage_logs table:", dropErr);
+              }
+            });
+          });
+        });
+      });
+    });
   });
 }
 

@@ -3,9 +3,14 @@
 // --- SYSTEM SETTINGS LOGIC ---
 
 window.toggleAutoLaunch = async (isChecked) => {
-    await window.electronAPI.setAutoLaunch(isChecked);
-    // Optional: Show a small toast notification or console log
-    console.log(`Auto-launch set to: ${isChecked}`);
+    const actualState = await window.electronAPI.setAutoLaunch(isChecked);
+    const checkbox = document.getElementById('setting-auto-launch');
+
+    if (checkbox) {
+        checkbox.checked = actualState;
+    }
+
+    console.log(`Auto-launch set to: ${actualState}`);
 };
 // --- HELPER FUNCTIONS ---
 
@@ -85,12 +90,6 @@ window.updateCategory = async (appName, newCategory) => {
 
 async function loadData() {
   try {
-    const checkbox = document.getElementById('setting-auto-launch');
-    if (checkbox) {
-        // We fetch the real status from the backend
-        const isAutoLaunch = await window.electronAPI.getAutoLaunch();
-        checkbox.checked = isAutoLaunch;
-    }
     const history = await window.electronAPI.getUsageData();
     const todayKey = new Date().toISOString().split('T')[0];
     const todayData = history[todayKey] || { apps: {} };
@@ -323,6 +322,15 @@ function finishFocusSession() {
 }
 
 // --- SETTINGS LOGIC ---
+
+async function loadSettings() {
+    const checkbox = document.getElementById('setting-auto-launch');
+
+    if (checkbox) {
+        const isAutoLaunch = await window.electronAPI.getAutoLaunch();
+        checkbox.checked = isAutoLaunch;
+    }
+}
 
 window.saveSettings = () => {
     const inputEl = document.getElementById('setting-focus-duration');
