@@ -1,5 +1,9 @@
 // src/renderer/script.js
 
+const DASHBOARD_FETCH_INTERVAL_MS = 10000;
+let latestDashboardTotalSeconds = 0;
+let latestDashboardFetchAt = Date.now();
+
 // --- SYSTEM SETTINGS LOGIC ---
 
 window.toggleAutoLaunch = async (isChecked) => {
@@ -90,9 +94,7 @@ window.updateCategory = async (appName, newCategory) => {
 
 async function loadData() {
   try {
-    const history = await window.electronAPI.getUsageData();
-    const todayKey = new Date().toISOString().split('T')[0];
-    const todayData = history[todayKey] || { apps: {} };
+    const todayData = await window.electronAPI.getTodayUsage();
     
     const dateEl = document.getElementById('date-display');
     if (dateEl) dateEl.innerText = getFriendlyDate();
@@ -122,6 +124,9 @@ async function loadData() {
       colors.push(stringToColor(appName));
     }
 
+    latestDashboardTotalSeconds = totalSeconds;
+    latestDashboardFetchAt = Date.now();
+
     // Update Cards
     const timeEl = document.getElementById('total-time-display');
     if (timeEl) timeEl.innerText = formatTime(totalSeconds);
@@ -143,6 +148,14 @@ async function loadData() {
 
   } catch (error) {
     console.error("Error loading dashboard:", error);
+  }
+}
+
+function tickDashboardClock() {
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - latestDashboardFetchAt) / 1000));
+  const timeEl = document.getElementById('total-time-display');
+  if (timeEl) {
+    timeEl.innerText = formatTime(latestDashboardTotalSeconds + elapsedSeconds);
   }
 }
 
@@ -359,4 +372,5 @@ window.clearAllData = async () => {
 // --- INITIALIZATION ---
 loadData();
 loadSettings();
-setInterval(loadData, 1000);
+setInterval(loadData, DASHBOARD_FETCH_INTERVAL_MS);
+setInterval(tickDashboardClock, 1000);

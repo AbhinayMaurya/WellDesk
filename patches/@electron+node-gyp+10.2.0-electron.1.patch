@@ -1,0 +1,13 @@
+diff --git a/node_modules/@electron/node-gyp/lib/find-visualstudio.js b/node_modules/@electron/node-gyp/lib/find-visualstudio.js
+index 1b5ddf3..7471bd4 100644
+--- a/node_modules/@electron/node-gyp/lib/find-visualstudio.js
++++ b/node_modules/@electron/node-gyp/lib/find-visualstudio.js
+@@ -384,7 +384,7 @@ class VisualStudioFinder {
+       ret.versionYear = 2019
+       return ret
+     }
+-    if (ret.versionMajor === 17) {
++    if (ret.versionMajor >= 17) {
+       ret.versionYear = 2022
+       return ret
+     }

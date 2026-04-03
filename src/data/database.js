@@ -109,8 +109,9 @@ function getTodayKey() {
 }
 
 // 4. CORE: Log App Usage
-export function logAppUsage(appName, windowTitle) {
+export function logAppUsage(appName, durationSeconds = 1) {
   const today = getTodayKey();
+  const safeDuration = Math.max(1, Number.isFinite(durationSeconds) ? Math.floor(durationSeconds) : 1);
 
   // First, check if we have a saved category rule
   db.get("SELECT category FROM category_rules WHERE app_name = ?", [appName], (err, row) => {
@@ -123,10 +124,10 @@ export function logAppUsage(appName, windowTitle) {
     // Note: SQLite 'ON CONFLICT' is perfect for this
     db.run(`
       INSERT INTO usage_logs (date, app_name, duration, category)
-      VALUES (?, ?, 1, ?)
+      VALUES (?, ?, ?, ?)
       ON CONFLICT(date, app_name) 
-      DO UPDATE SET duration = duration + 1, category = excluded.category
-    `, [today, appName, category]);
+      DO UPDATE SET duration = duration + excluded.duration, category = excluded.category
+    `, [today, appName, safeDuration, category]);
   });
 }
 
@@ -182,6 +183,31 @@ export function clearAllHistory() {
   return new Promise((resolve) => {
     db.run("DELETE FROM usage_logs", [], (err) => {
       resolve(true);
+    });
+  });
+}
+
+export function getTodayUsage() {
+  return new Promise((resolve) => {
+    const today = getTodayKey();
+
+    db.all("SELECT app_name, duration, category FROM usage_logs WHERE date = ? ORDER BY duration DESC", [today], (err, rows) => {
+      if (err) {
+        console.error("DB Error:", err);
+        return resolve({ total_time: 0, apps: {} });
+      }
+
+      const todayData = { total_time: 0, apps: {} };
+
+      rows.forEach((row) => {
+        todayData.total_time += row.duration;
+        todayData.apps[row.app_name] = {
+          total_duration: row.duration,
+          category: row.category
+        };
+      });
+
+      resolve(todayData);
     });
   });
 }

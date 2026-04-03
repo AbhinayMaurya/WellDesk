@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import activeWin from 'active-win';
-import { initDB, logAppUsage, getHistory, setAppCategory, clearAllHistory } from './data/database.js';
+import { initDB, logAppUsage, getHistory, getTodayUsage, setAppCategory, clearAllHistory } from './data/database.js';
 import Store from 'electron-store'; 
 import path from 'path'; 
 import { fileURLToPath } from 'url'; 
@@ -12,6 +12,8 @@ const store = new Store();
 let mainWindow;
 let intervalId;
 let isFocusMode = false; 
+let lastTrackedApp = null;
+let lastTrackedAt = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -30,17 +32,24 @@ function createWindow() {
 
 // --- MODULE A + C: WATCHER & ENFORCER ---
 async function startTracking() {
-  // Silent startup
+  // Timestamp-based accounting keeps precision while reducing poll frequency.
   intervalId = setInterval(async () => {
     try {
+      const now = Date.now();
       const windowInfo = await activeWin();
 
       if (windowInfo) {
-        const appName = windowInfo.owner.name;
-        const windowTitle = windowInfo.title;
+        const appName = windowInfo.owner?.name || 'Unknown App';
 
-        // 1. Log Usage
-        logAppUsage(appName, windowTitle);
+        if (lastTrackedApp && lastTrackedAt) {
+          const elapsedSeconds = Math.max(0, Math.floor((now - lastTrackedAt) / 1000));
+          if (elapsedSeconds > 0) {
+            logAppUsage(lastTrackedApp, elapsedSeconds);
+          }
+        }
+
+        lastTrackedApp = appName;
+        lastTrackedAt = now;
 
         // 2. ENFORCEMENT (Focus Mode)
         if (isFocusMode) {
@@ -50,7 +59,20 @@ async function startTracking() {
     } catch (error) {
       // Ignore errors silently
     }
-  }, 1000);
+  }, 2000);
+}
+
+function flushPendingUsage() {
+  if (!lastTrackedApp || !lastTrackedAt) {
+    return;
+  }
+
+  const now = Date.now();
+  const elapsedSeconds = Math.max(0, Math.floor((now - lastTrackedAt) / 1000));
+  if (elapsedSeconds > 0) {
+    logAppUsage(lastTrackedApp, elapsedSeconds);
+    lastTrackedAt = now;
+  }
 }
 
 // --- HELPER: The Blocking Logic ---
@@ -83,6 +105,10 @@ app.whenReady().then(() => {
   // UPDATED: Now Async because DB access takes time
   ipcMain.handle('get-usage-data', async () => {
     return await getHistory();
+  });
+
+  ipcMain.handle('get-today-usage', async () => {
+    return await getTodayUsage();
   });
   
   // Set Category (Fire and forget, but usually fast)
@@ -147,6 +173,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  flushPendingUsage();
   clearInterval(intervalId); 
   if (process.platform !== 'darwin') app.quit();
 });

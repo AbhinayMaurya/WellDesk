@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "postinstall": "patch-package"
   },
   "build": {
     "appId": "com.welldesk.app",
@@ -21,7 +22,8 @@
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "latest"
+    "electron-builder": "latest",
+    "patch-package": "^8.0.1"
   },
   "dependencies": {
     "active-win": "^8.2.0",
