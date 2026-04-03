@@ -1,23 +1,25 @@
 // src/data/database.js
+
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import { app } from 'electron';
 
-// 1. Setup Database Path (in AppData folder)
+// 1. Setup Database Path
 const dbPath = path.join(app.getPath('userData'), 'welldesk.db');
 const db = new sqlite3.Database(dbPath);
 
-// 2. Initialize Tables (Run this when app starts)
+// 2. Initialize Tables (Updated for Window Titles)
 export function initDB() {
   db.serialize(() => {
-    // Table: Daily App Usage
+    // UPDATED: Now includes 'window_title' as part of the Primary Key
     db.run(`
       CREATE TABLE IF NOT EXISTS usage_logs (
         date TEXT,
         app_name TEXT,
+        window_title TEXT,
         duration INTEGER,
         category TEXT,
-        PRIMARY KEY (date, app_name)
+        PRIMARY KEY (date, app_name, window_title)
       )
     `);
 
@@ -113,15 +115,11 @@ export function logAppUsage(appName, durationSeconds = 1) {
   const today = getTodayKey();
   const safeDuration = Math.max(1, Number.isFinite(durationSeconds) ? Math.floor(durationSeconds) : 1);
 
-  // First, check if we have a saved category rule
   db.get("SELECT category FROM category_rules WHERE app_name = ?", [appName], (err, row) => {
-    let category = 'Neutral'; // Default
-    if (row && row.category) {
-      category = row.category;
-    }
+    let category = 'Neutral';
+    if (row && row.category) category = row.category;
 
-    // Upsert: Update duration if exists, else Insert
-    // Note: SQLite 'ON CONFLICT' is perfect for this
+    // UPDATED: Insert/Update specific to the Window Title
     db.run(`
       INSERT INTO usage_logs (date, app_name, duration, category)
       VALUES (?, ?, ?, ?)
@@ -131,16 +129,14 @@ export function logAppUsage(appName, durationSeconds = 1) {
   });
 }
 
-// 5. Update Category (Manually from UI)
+// 4. Update Category (Updates all logs for that app on that day)
 export function setAppCategory(appName, newCategory) {
-  // A. Save the rule for future
   db.run(`
     INSERT INTO category_rules (app_name, category)
     VALUES (?, ?)
     ON CONFLICT(app_name) DO UPDATE SET category = excluded.category
   `, [appName, newCategory]);
 
-  // B. Update today's logs immediately
   const today = getTodayKey();
   db.run(`
     UPDATE usage_logs 
@@ -149,28 +145,40 @@ export function setAppCategory(appName, newCategory) {
   `, [newCategory, appName, today]);
 }
 
-// 6. Retrieve Data for Frontend (Formatted like the old JSON)
+// 5. Retrieve Data (Aggregated Structure)
 export function getHistory() {
   return new Promise((resolve, reject) => {
     const history = {};
 
     db.all("SELECT * FROM usage_logs ORDER BY date DESC", [], (err, rows) => {
-      if (err) {
-        console.error("DB Error:", err);
-        return resolve({});
-      }
+      if (err) return resolve({});
 
-      // Convert flat SQL rows back to nested JSON for the UI
       rows.forEach(row => {
         if (!history[row.date]) {
           history[row.date] = { total_time: 0, apps: {} };
         }
 
+        // 1. Add to Daily Total
         history[row.date].total_time += row.duration;
-        history[row.date].apps[row.app_name] = {
-          total_duration: row.duration,
-          category: row.category
-        };
+
+        // 2. Initialize App Object if missing
+        if (!history[row.date].apps[row.app_name]) {
+          history[row.date].apps[row.app_name] = {
+            total_duration: 0,
+            category: row.category,
+            window_titles: {} // Nested object for details
+          };
+        }
+
+        // 3. Add to App Total
+        history[row.date].apps[row.app_name].total_duration += row.duration;
+
+        // 4. Add to Specific Window Title count
+        const wTitle = row.window_title || "Unknown";
+        if (!history[row.date].apps[row.app_name].window_titles[wTitle]) {
+          history[row.date].apps[row.app_name].window_titles[wTitle] = 0;
+        }
+        history[row.date].apps[row.app_name].window_titles[wTitle] += row.duration;
       });
 
       resolve(history);
@@ -178,12 +186,10 @@ export function getHistory() {
   });
 }
 
-// 7. Clear History
+// 6. Clear History
 export function clearAllHistory() {
   return new Promise((resolve) => {
-    db.run("DELETE FROM usage_logs", [], (err) => {
-      resolve(true);
-    });
+    db.run("DELETE FROM usage_logs", [], () => resolve(true));
   });
 }
 
