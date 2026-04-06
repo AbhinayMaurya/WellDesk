@@ -2,20 +2,20 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
 import activeWin from 'active-win';
-import { initDB, logAppUsage, getHistory, getTodayUsage, setAppCategory, clearAllHistory } from './data/database.js';
-import Store from 'electron-store'; 
+import { initDB, logAppUsage, getHistory, getTodayUsage, getAppCategory, setAppCategory, clearAllHistory } from './data/database.js';
 import path from 'path'; 
 import { fileURLToPath } from 'url'; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const store = new Store(); 
 
 let mainWindow;
 let intervalId;
 let isFocusMode = false; 
 let lastTrackedApp = null;
+let lastTrackedWindowTitle = 'General';
 let lastTrackedAt = null;
+const categoryCache = new Map();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -42,20 +42,22 @@ async function startTracking() {
 
       if (windowInfo) {
         const appName = windowInfo.owner?.name || 'Unknown App';
+        const windowTitle = (windowInfo.title && windowInfo.title.trim()) ? windowInfo.title.trim() : 'General';
 
         if (lastTrackedApp && lastTrackedAt) {
           const elapsedSeconds = Math.max(0, Math.floor((now - lastTrackedAt) / 1000));
           if (elapsedSeconds > 0) {
-            logAppUsage(lastTrackedApp, elapsedSeconds);
+            logAppUsage(lastTrackedApp, lastTrackedWindowTitle, elapsedSeconds);
           }
         }
 
         lastTrackedApp = appName;
+        lastTrackedWindowTitle = windowTitle;
         lastTrackedAt = now;
 
         // 2. ENFORCEMENT (Focus Mode)
         if (isFocusMode) {
-            checkAndBlock(appName);
+            void checkAndBlock(appName);
         }
       }
     } catch (error) {
@@ -72,15 +74,24 @@ function flushPendingUsage() {
   const now = Date.now();
   const elapsedSeconds = Math.max(0, Math.floor((now - lastTrackedAt) / 1000));
   if (elapsedSeconds > 0) {
-    logAppUsage(lastTrackedApp, elapsedSeconds);
+    logAppUsage(lastTrackedApp, lastTrackedWindowTitle, elapsedSeconds);
     lastTrackedAt = now;
   }
 }
 
 // --- HELPER: The Blocking Logic ---
-function checkAndBlock(appName) {
-    // 1. Get the category of the current active app
-    const category = store.get(`settings.app_categories.${appName}`);
+async function resolveCategory(appName) {
+  if (categoryCache.has(appName)) {
+    return categoryCache.get(appName);
+  }
+
+  const category = await getAppCategory(appName);
+  categoryCache.set(appName, category);
+  return category;
+}
+
+async function checkAndBlock(appName) {
+    const category = await resolveCategory(appName);
 
     // 2. If it is a distraction
     if (category === 'Distraction') {
@@ -116,6 +127,7 @@ app.whenReady().then(() => {
   // Set Category (Fire and forget, but usually fast)
   ipcMain.handle('set-category', (event, appName, category) => {
     setAppCategory(appName, category);
+    categoryCache.set(appName, category);
     return true;
   });
 
@@ -165,6 +177,18 @@ app.whenReady().then(() => {
       path: app.getPath('exe')
     }).openAtLogin;
   });
+
+  ipcMain.handle('get-app-info', () => {
+    return {
+      name: app.getName(),
+      version: app.getVersion(),
+      electron: process.versions.electron,
+      chromium: process.versions.chrome,
+      node: process.versions.node,
+      platform: process.platform,
+      arch: process.arch
+    };
+  });
   
   createWindow();
   startTracking();
@@ -178,4 +202,8 @@ app.on('window-all-closed', () => {
   flushPendingUsage();
   clearInterval(intervalId); 
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  flushPendingUsage();
 });

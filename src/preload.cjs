@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- NEW FUNCTION ---
   clearData: () => ipcRenderer.invoke('clear-data'),
   setAutoLaunch: (state) => ipcRenderer.invoke('set-auto-launch', state),
-  getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch')
+  getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch'),
+  getAppInfo: () => ipcRenderer.invoke('get-app-info')
 });
