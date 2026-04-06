@@ -50,10 +50,12 @@ function ensureUsageLogsSchema() {
       return;
     }
 
+    const hasWindowTitleColumn = rows.some((row) => row.name === 'window_title');
     const hasCompositePrimaryKey = rows.some((row) => row.name === 'date' && row.pk === 1)
-      && rows.some((row) => row.name === 'app_name' && row.pk === 2);
+      && rows.some((row) => row.name === 'app_name' && row.pk === 2)
+      && rows.some((row) => row.name === 'window_title' && row.pk === 3);
 
-    if (hasCompositePrimaryKey) {
+    if (hasWindowTitleColumn && hasCompositePrimaryKey) {
       return;
     }
 
@@ -68,9 +70,10 @@ function ensureUsageLogsSchema() {
           CREATE TABLE usage_logs (
             date TEXT,
             app_name TEXT,
+            window_title TEXT,
             duration INTEGER,
             category TEXT,
-            PRIMARY KEY (date, app_name)
+            PRIMARY KEY (date, app_name, window_title)
           )
         `, (createErr) => {
           if (createErr) {
@@ -78,15 +81,18 @@ function ensureUsageLogsSchema() {
             return;
           }
 
+          const windowTitleExpr = hasWindowTitleColumn ? "COALESCE(window_title, 'General')" : "'General'";
+
           db.run(`
-            INSERT INTO usage_logs (date, app_name, duration, category)
+            INSERT INTO usage_logs (date, app_name, window_title, duration, category)
             SELECT
               date,
               app_name,
+              ${windowTitleExpr} AS window_title,
               SUM(COALESCE(duration, 0)) AS duration,
               COALESCE(MAX(category), 'Neutral') AS category
             FROM usage_logs_legacy
-            GROUP BY date, app_name
+            GROUP BY date, app_name, window_title
           `, (copyErr) => {
             if (copyErr) {
               console.error("Failed to migrate legacy usage logs:", copyErr);
@@ -107,25 +113,41 @@ function ensureUsageLogsSchema() {
 
 // 3. Helper: Get formatted date "YYYY-MM-DD"
 function getTodayKey() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 // 4. CORE: Log App Usage
-export function logAppUsage(appName, durationSeconds = 1) {
+export function logAppUsage(appName, windowTitle = 'General', durationSeconds = 1) {
   const today = getTodayKey();
+  const safeTitle = (windowTitle && windowTitle.trim()) ? windowTitle.trim() : 'General';
   const safeDuration = Math.max(1, Number.isFinite(durationSeconds) ? Math.floor(durationSeconds) : 1);
 
   db.get("SELECT category FROM category_rules WHERE app_name = ?", [appName], (err, row) => {
     let category = 'Neutral';
     if (row && row.category) category = row.category;
 
-    // UPDATED: Insert/Update specific to the Window Title
     db.run(`
-      INSERT INTO usage_logs (date, app_name, duration, category)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(date, app_name) 
+      INSERT INTO usage_logs (date, app_name, window_title, duration, category)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(date, app_name, window_title)
       DO UPDATE SET duration = duration + excluded.duration, category = excluded.category
-    `, [today, appName, safeDuration, category]);
+    `, [today, appName, safeTitle, safeDuration, category]);
+  });
+}
+
+export function getAppCategory(appName) {
+  return new Promise((resolve) => {
+    db.get("SELECT category FROM category_rules WHERE app_name = ?", [appName], (err, row) => {
+      if (err) {
+        return resolve('Neutral');
+      }
+
+      resolve(row?.category || 'Neutral');
+    });
   });
 }
 
@@ -197,7 +219,13 @@ export function getTodayUsage() {
   return new Promise((resolve) => {
     const today = getTodayKey();
 
-    db.all("SELECT app_name, duration, category FROM usage_logs WHERE date = ? ORDER BY duration DESC", [today], (err, rows) => {
+    db.all(`
+      SELECT app_name, SUM(duration) as duration, COALESCE(MAX(category), 'Neutral') as category
+      FROM usage_logs
+      WHERE date = ?
+      GROUP BY app_name
+      ORDER BY duration DESC
+    `, [today], (err, rows) => {
       if (err) {
         console.error("DB Error:", err);
         return resolve({ total_time: 0, apps: {} });
