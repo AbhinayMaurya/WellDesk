@@ -1,23 +1,77 @@
-# WellDesk 💙
-> A Digital Wellbeing Dashboard & Focus Enforcer for Windows.
+# WellDesk
 
-**WellDesk** tracks your daily app usage, visualizes your productivity trends, and helps you stay focused by blocking distractions during deep work sessions. Built with **Electron** and **Node.js**.
+WellDesk is a Windows desktop app for digital wellbeing and focus management. It tracks active app usage locally, shows daily and weekly activity in the dashboard, lets you classify apps as productive or distracting, and keeps you in focus mode with a tray-based background experience.
 
-## 🚀 Features
-* **📊 Live Dashboard:** See real-time breakdown of time spent on apps.
-* **🛡️ Focus Mode:** Blocks distraction apps (like Games/Social Media) when the timer is running.
-* **📅 History:** View usage trends over the last 7 days.
-* **🔒 Privacy First:** All data is stored locally on your machine. No internet required.
-* **🎨 Custom Categories:** Tag apps as Productive, Distraction, or Neutral.
+## What It Does
 
-## 🛠️ Tech Stack
-* **Electron** (Desktop Framework)
-* **Chart.js** (Data Visualization)
-* **Active-Win** (Window Tracking)
-* **Node.js** (Backend Logic)
+- Tracks the foreground app and window title every 2 seconds.
+- Stores usage history locally in SQLite.
+- Shows today’s usage, a productivity score, and a usage breakdown chart.
+- Lets you categorize apps as `Productive`, `Neutral`, or `Distraction`.
+- Shows window-title level history so you can drill into app activity.
+- Runs in the system tray and keeps tracking even when the window is closed.
+- Supports focus sessions with a configurable timer.
+- Supports auto-launch in packaged builds.
+- Stores UI preferences locally in the renderer.
 
-## 📦 How to Build
-If you want to build this from source:
-1.  Clone the repo
-2.  Run `npm install`
-3.  Run `npm start` (for dev) or `npm run build` (for executable)
+## Production Notes
+
+- This app is built for Windows.
+- Closing the main window hides it to the tray instead of quitting.
+- Auto-launch is only enabled in the packaged app, not in development mode.
+- All tracking data stays on the machine; no cloud account or internet connection is required for the core workflow.
+
+## Features
+
+### Dashboard
+
+- Live view of today’s total tracked time.
+- Productivity score based on the share of time assigned to productive apps.
+- Top app summary.
+- Per-app category selector.
+
+### History
+
+- Weekly usage chart.
+- Day-by-day drill-down.
+- Window title breakdown for each app.
+
+### Focus Mode
+
+- Timer-driven focus sessions.
+- Apps marked as distracting are surfaced while focus mode is active.
+- Custom timer input in minutes or `MM:SS` format.
+
+### Settings
+
+- Start WellDesk with Windows.
+- Dashboard refresh interval.
+- History week limit.
+- Optional completion alert when focus ends.
+- Optional confirmation before clearing data.
+
+## Tech Stack
+
+- Electron
+- Node.js
+- SQLite3
+- Chart.js
+- active-win
+
+## Data Storage
+
+- Usage logs are stored in `welldesk.db` inside the app user data folder.
+- App category rules are stored locally in SQLite.
+- Renderer preferences are stored in browser localStorage.
+
+## Project Structure
+
+- `src/main.js` handles the Electron main process, tray behavior, tracking, and IPC.
+- `src/preload.cjs` exposes the renderer bridge.
+- `src/data/database.js` manages the SQLite schema and queries.
+- `src/renderer/` contains the UI, charts, and client-side behavior.
+
+## Notes
+
+- The app is designed to keep running in the background until you choose Quit from the tray menu.
+- A patch-package step runs after install, so keep the `patches/` directory in the repository.
