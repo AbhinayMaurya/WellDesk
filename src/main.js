@@ -1,6 +1,6 @@
 // src/main.js
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } from 'electron';
 import activeWin from 'active-win';
 import { initDB, logAppUsage, getHistory, getTodayUsage, getAppCategory, setAppCategory, clearAllHistory } from './data/database.js';
 import path from 'path'; 
@@ -10,17 +10,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow;
+let tray = null;
 let intervalId;
 let isFocusMode = false; 
+let isQuitting = false;
 let lastTrackedApp = null;
 let lastTrackedWindowTitle = 'General';
 let lastTrackedAt = null;
 const categoryCache = new Map();
+const launchedHidden = process.argv.includes('--hidden');
 
-function createWindow() {
+function createWindow(showOnCreate = true) {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -30,6 +34,77 @@ function createWindow() {
 
   mainWindow.removeMenu(); 
   mainWindow.loadFile('src/renderer/index.html');
+
+  mainWindow.once('ready-to-show', () => {
+    if (showOnCreate) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  mainWindow.on('close', (event) => {
+    if (isQuitting) {
+      return;
+    }
+
+    event.preventDefault();
+    mainWindow.hide();
+  });
+}
+
+function createTray() {
+  if (tray) {
+    return;
+  }
+
+  // Use app executable icon when available; otherwise fall back to a tiny built-in image.
+  const fallbackIcon = nativeImage.createFromDataURL(
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAQ0lEQVQoka2QMQ4AIAgD6f9/rjNQkqb0IJTRZF7k5EKD4HEDYAUg1I2cQfEKQJjIhIY8eA0T6yXxgJvWb0W0I7q8mD8b4Yw5Q6wP4Vf4A0v8Yw2M8h90AAAAASUVORK5CYII='
+  );
+  const icon = app.isPackaged ? nativeImage.createFromPath(process.execPath) : fallbackIcon;
+
+  tray = new Tray(icon.isEmpty() ? fallbackIcon : icon);
+  tray.setToolTip('WellDesk');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Open WellDesk',
+      click: () => {
+        if (!mainWindow) {
+          createWindow(true);
+          return;
+        }
+
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    },
+    {
+      type: 'separator'
+    },
+    {
+      label: 'Quit',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setContextMenu(contextMenu);
+  tray.on('click', () => {
+    if (!mainWindow) {
+      createWindow(true);
+      return;
+    }
+
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
 }
 
 // --- MODULE A + C: WATCHER & ENFORCER ---
@@ -163,6 +238,8 @@ app.whenReady().then(() => {
     // 2. Register the correct path
     app.setLoginItemSettings({
       openAtLogin: state,
+      openAsHidden: true,
+      args: ['--hidden'],
       path: app.getPath('exe') // This points to the real WellDesk.exe
     });
     return state;
@@ -190,20 +267,29 @@ app.whenReady().then(() => {
     };
   });
   
-  createWindow();
+  createWindow(!launchedHidden);
+  createTray();
   startTracking();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow(true);
+      return;
+    }
+
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 });
 
 app.on('window-all-closed', () => {
-  flushPendingUsage();
-  clearInterval(intervalId); 
-  if (process.platform !== 'darwin') app.quit();
+  // Keep process alive for tray/background behavior.
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   flushPendingUsage();
+  clearInterval(intervalId);
 });

@@ -267,14 +267,16 @@ async function loadHistoryChart() {
         const backgroundColors = [];
         currentWeekKeys = []; // Reset keys
 
-        // Calculate Date Range
-        const today = new Date();
-        today.setDate(today.getDate() - (historyWeekOffset * 7));
+        // Calculate fixed week range: Sunday -> Saturday
+        const referenceDate = new Date();
+        referenceDate.setDate(referenceDate.getDate() - (historyWeekOffset * 7));
+        const weekStart = new Date(referenceDate);
+        weekStart.setDate(referenceDate.getDate() - referenceDate.getDay());
         
-        // Loop Last 7 Days (Reverse order)
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
+        // Always render in calendar order from Sunday to Saturday
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(weekStart);
+            d.setDate(weekStart.getDate() + i);
             const dateKey = d.toISOString().split('T')[0];
             const dayName = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
 

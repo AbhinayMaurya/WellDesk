@@ -15,6 +15,9 @@
     "win": {
       "target": "nsis"
     },
+    "nsis": {
+      "deleteAppDataOnUninstall": true
+    },
     "files": [
       "src/**/*",
       "package.json"
